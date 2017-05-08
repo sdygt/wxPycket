@@ -1,6 +1,6 @@
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 
-import logger
+from logger import logger
 
 
 class MainHandler(BaseRequestHandler):

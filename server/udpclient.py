@@ -1,7 +1,7 @@
 import socket
 import sys
 
-import logger
+from logger import logger
 
 
 def main():

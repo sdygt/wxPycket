@@ -1,21 +1,22 @@
-from socketserver import BaseRequestHandler, TCPServer
+from socketserver import BaseRequestHandler, ThreadingTCPServer
 
 from logger import logger
 
 
 class MainHandler(BaseRequestHandler):
     def handle(self):
-        print('Got connection from', self.client_address)
+        logger.notice("New connection from " + str(self.client_address))
         while True:
-
             msg = self.request.recv(8192)
+            logger.info(msg)
             if not msg:
                 break
-            self.request.send(msg)
+
+        logger.notice("Disconnected from " + str(self.client_address))
 
 
 if __name__ == '__main__':
-    serv = TCPServer(('', 20000), MainHandler)
-    logger.error('dassd')
+    serv = ThreadingTCPServer(('', 20000), MainHandler)
+
     print("Listening on TCP Port " + str(serv.server_address))
     serv.serve_forever()
