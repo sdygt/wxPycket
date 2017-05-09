@@ -19,9 +19,9 @@ def notice(msg):
 
 def info(msg):
     sys.stdout.write(str(datetime.datetime.now()) + ' [INFO] ' + str(msg) + '\n')
-    sys.stderr.flush()
+    sys.stdout.flush()
 
 
 def debug(msg):
     sys.stdout.write(str(datetime.datetime.now()) + ' [DBG ] ' + str(msg) + '\n')
-    sys.stderr.flush()
+    sys.stdout.flush()
