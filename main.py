@@ -1,6 +1,7 @@
 import datetime
 import gettext
 import os
+import socket
 import sys
 import threading
 from socketserver import ThreadingTCPServer, StreamRequestHandler, DatagramRequestHandler, ThreadingUDPServer
@@ -15,6 +16,8 @@ class MainFrame(MyFrame):
         MyFrame.__init__(self, *args, **kwds)
         self.serverThread = None
         self.server = None
+        self.clientSocket = None
+        self.clientSocketProtocol = None
 
     def OnAbout(self, event):
         wx.MessageBox('About...', '关于', wx.OK)
@@ -59,11 +62,11 @@ class MainFrame(MyFrame):
                 self.serverThread.daemon = True
                 self.serverThread.start()
                 log('notice', 'UDP Server started')
-            except (Exception) as e:
-                wx.MessageBox('Failed Starting Server')
-                log('error', e)
             except OSError as e:
                 wx.MessageBox(e)
+                log('error', e)
+            except Exception as e:
+                wx.MessageBox('Failed Starting Server')
                 log('error', e)
 
         self.btn_server_toggle.SetLabel('停止')
@@ -74,6 +77,85 @@ class MainFrame(MyFrame):
         self.server.shutdown()
         self.server.server_close()
         self.btn_server_toggle.SetLabel('启动')
+        log('notice', 'Server stopped.')
+
+    def OnClientToggle(self, event):
+        log('debug', 'OnClientToggle')
+        if self.clientSocket:
+            self.OnClientStop()
+        else:
+            self.OnClientStart()
+
+    def OnClientStart(self):
+        log('debug', 'OnClientStart')
+        txtAddress = self.text_client_address.GetValue()
+        txtPort = self.text_client_port.GetValue()
+        if not self.is_valid_ip(txtAddress):
+            wx.MessageBox('Invalid IP Address！')
+            return
+        if not txtPort.isdigit() or int(txtPort) <= 1024 or int(txtPort) >= 65536:
+            wx.MessageBox('Invalid port!')
+            return
+
+        PORT = (txtAddress, int(txtPort))
+
+        radP = self.radio_client_protocol
+        txtProtocol = radP.GetItemLabel(radP.GetSelection())
+
+        if txtProtocol == 'TCP':
+            try:
+                self.clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.clientSocket.connect(PORT)
+                log('notice', "TCP Connection " + str(self.clientSocket.getsockname()) + " established")
+
+            except Exception as e:
+                log('warning', str(e))
+                self.clientSocket = None
+                return
+
+        else:  # UDP
+            try:
+                self.clientSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                log('notice', "UDP Socket " + str(self.clientSocket) + " established")
+            except Exception as e:
+                log('warning', str(e))
+                self.clientSocket = None
+                return
+
+        self.clientSocketProtocol = txtProtocol
+        self.btn_client_toggle.SetLabel('关闭Socket')
+
+    def OnClientStop(self):
+        log('debug', 'OnClientStop')
+        log('notice', "Closing Connection " + str(self.clientSocket))
+        self.clientSocket.close()
+        self.clientSocket = None
+        self.clientSocketProtocol = None
+        self.btn_client_toggle.SetLabel('建立Socket')
+
+    def OnClientSend(self, event):
+        msg = self.text_client_input.GetValue().encode()
+        print(msg)
+        try:
+            if self.clientSocketProtocol == 'TCP':
+                self.clientSocket.send(msg)
+            else:  # UDP
+                txtAddress = self.text_client_address.GetValue()
+                txtPort = self.text_client_port.GetValue()
+                PORT = (txtAddress, int(txtPort))
+                self.clientSocket.sendto(msg, PORT)
+
+            self.text_client_input.Clear()
+        except Exception as e:
+            log('warning', str(e))
+            self.OnClientStop()
+
+    def is_valid_ip(self, addr):
+        try:
+            socket.inet_aton(addr)
+            return True
+        except socket.error:
+            return False
 
     class MainTCPHandler(StreamRequestHandler):
         def __init__(self, request, client_address, server):
@@ -109,10 +191,12 @@ if __name__ == "__main__":
 
 
     def log(type, msg, frame=frame):
-        label = {'err': '[ERR!]', 'warning': '[WARN]', 'notice': '[NOTI]', 'info': '[INFO]', 'debug': '[DBG ]'}
+        label = {'error': '[ERR!]', 'warning': '[WARN]', 'notice': '[NOTI]', 'info': '[INFO]', 'debug': '[DBG ]'}
         print(datetime.datetime.now(), label[type], msg, sep=' ', file=sys.stderr)
         if not type == 'debug':
             frame.text_log.AppendText(str(datetime.datetime.now()) + ' ' + label[type] + ' ' + msg + '\n')
+        if type in ['err', 'warning', 'notice']:
+            frame.frame_statusbar.SetStatusText(str(msg))
 
 
     wxPycket.SetTopWindow(frame)
