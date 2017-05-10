@@ -48,12 +48,13 @@ class MainFrame(MyFrame):
                 self.serverThread.daemon = True
                 self.serverThread.start()
                 log('notice', 'TCP Server started')
+            except OSError as e:
+                wx.MessageBox(str(e))
+                log('error', str(e))
             except (Exception) as e:
                 wx.MessageBox('Failed Starting Server')
-                log('error', e)
-            except OSError as e:
-                wx.MessageBox(e)
-                log('error', e)
+                log('error', str(e))
+
         elif txtProtocol == 'UDP':
             try:
                 os.close(os.open('.enable', os.O_CREAT))
@@ -93,7 +94,7 @@ class MainFrame(MyFrame):
         if not self.is_valid_ip(txtAddress):
             wx.MessageBox('Invalid IP Address！')
             return
-        if not txtPort.isdigit() or int(txtPort) <= 1024 or int(txtPort) >= 65536:
+        if not txtPort.isdigit() or int(txtPort) <= 0 or int(txtPort) >= 65536:
             wx.MessageBox('Invalid port!')
             return
 
@@ -135,7 +136,6 @@ class MainFrame(MyFrame):
 
     def OnClientSend(self, event):
         msg = self.text_client_input.GetValue().encode()
-        print(msg)
         try:
             if self.clientSocketProtocol == 'TCP':
                 self.clientSocket.send(msg)
